@@ -1,0 +1,225 @@
+name: Dev to Test Workflow
+
+on:
+  push:
+    branches:
+      - dev
+    paths-ignore:
+      - 'README.md'
+      - '.gitignore'
+      - 'CODEOWNERS'
+
+jobs:
+  # Job 1: Create/Update PR from dev to test
+  create-pr:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/dev'
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+    
+    - name: Configure Git
+      run: |
+        git config --global user.name "GitHub Actions Bot"
+        git config --global user.email "actions@github.com"
+    
+    - name: Check if PR already exists
+      id: check-pr
+      run: |
+        # Check if there's already an open PR from dev to test
+        PR_EXISTS=$(gh pr list --base test --head dev --state open --json number --jq '.[0].number' || echo "")
+        if [ -n "$PR_EXISTS" ]; then
+          echo "pr_exists=true" >> $GITHUB_OUTPUT
+          echo "pr_number=$PR_EXISTS" >> $GITHUB_OUTPUT
+        else
+          echo "pr_exists=false" >> $GITHUB_OUTPUT
+        fi
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Get commit information
+      id: commit-info
+      run: |
+        COMMIT_MSG=$(git log -1 --pretty=format:"%s")
+        COMMIT_AUTHOR=$(git log -1 --pretty=format:"%an")
+        COMMIT_SHA=$(git rev-parse HEAD)
+        COMMIT_SHORT=$(git rev-parse --short HEAD)
+        
+        echo "commit_msg=$COMMIT_MSG" >> $GITHUB_OUTPUT
+        echo "commit_author=$COMMIT_AUTHOR" >> $GITHUB_OUTPUT
+        echo "commit_sha=$COMMIT_SHA" >> $GITHUB_OUTPUT
+        echo "commit_short=$COMMIT_SHORT" >> $GITHUB_OUTPUT
+    
+    - name: Create Pull Request
+      if: steps.check-pr.outputs.pr_exists == 'false'
+      run: |
+        # Create PR from dev to test
+        gh pr create \
+          --base test \
+          --head dev \
+          --title "🚀 Feature Update: ${{ steps.commit-info.outputs.commit_msg }}" \
+          --body "## 🔄 Automated Pull Request from Dev to Test
+        
+        This PR was automatically created when new features were pushed to the \`dev\` branch.
+        
+        ### 📋 Latest Changes:
+        - **Commit**: \`${{ steps.commit-info.outputs.commit_short }}\`
+        - **Author**: ${{ steps.commit-info.outputs.commit_author }}
+        - **Message**: ${{ steps.commit-info.outputs.commit_msg }}
+        
+        ### 🧪 What happens next:
+        1. ✅ This PR will trigger automated unit testing
+        2. 🔍 Review the changes before merging
+        3. ✅ Ensure all tests pass before merging to \`test\` branch
+        4. 🚀 After merge, the test branch will be ready for staging deployment
+        
+        ### 📊 Recent Commits:
+        \`\`\`
+        $(git log --oneline -5)
+        \`\`\`
+        
+        ### 🔗 Related:
+        - **Source Branch**: \`dev\`
+        - **Target Branch**: \`test\`
+        - **Triggered by**: Push to dev branch
+        
+        ---
+        *This PR was created automatically by GitHub Actions*" \
+          --assignee @me \
+          --label "automated,dev-to-test,testing,feature-update"
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Update existing PR
+      if: steps.check-pr.outputs.pr_exists == 'true'
+      run: |
+        # Update existing PR with new commits
+        gh pr comment ${{ steps.check-pr.outputs.pr_number }} \
+          --body "🔄 **PR Updated** - New commits pushed to \`dev\` branch
+        
+        ### 📝 Latest Update:
+        - **Commit**: \`${{ steps.commit-info.outputs.commit_short }}\`
+        - **Author**: ${{ steps.commit-info.outputs.commit_author }}
+        - **Message**: ${{ steps.commit-info.outputs.commit_msg }}
+        
+        ### 📊 Recent Commits:
+        \`\`\`
+        $(git log --oneline -3)
+        \`\`\`
+        
+        *Updated automatically by GitHub Actions*"
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Notify on success
+      run: |
+        echo "✅ Successfully handled PR creation/update from dev to test branch"
+        echo "🔗 Check the PR at: https://github.com/${{ github.repository }}/pulls"
+
+  # Job 2: Run tests on the created PR
+  run-tests-on-pr:
+    runs-on: ubuntu-latest
+    needs: create-pr
+    if: always() && needs.create-pr.result == 'success'
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      with:
+        ref: dev
+    
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.13'
+        cache: 'pip'
+    
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    
+    - name: Run unit tests
+      run: |
+        echo "🧪 Running unit tests on dev branch changes..."
+        python -m pytest test_app.py -v --tb=short --junitxml=test-results.xml
+    
+    - name: Generate test report
+      run: |
+        echo "📊 Test Results Summary:"
+        python -m pytest test_app.py --tb=no -q
+    
+    - name: Comment on PR with test results
+      uses: actions/github-script@v7
+      with:
+        script: |
+          const { execSync } = require('child_process');
+          
+          try {
+            // Run tests and capture output
+            const testOutput = execSync('python -m pytest test_app.py --tb=no -q', { encoding: 'utf8' });
+            
+            // Parse test results
+            const lines = testOutput.split('\n');
+            const summaryLine = lines.find(line => line.includes('passed') || line.includes('failed'));
+            
+            let status = '✅';
+            let message = 'All tests passed!';
+            let color = 'green';
+            
+            if (summaryLine) {
+              if (summaryLine.includes('failed')) {
+                status = '❌';
+                message = 'Some tests failed';
+                color = 'red';
+              }
+            }
+            
+            const comment = `## 🧪 Pre-Merge Test Results ${status}
+            
+            ${message}
+            
+            ### 📋 Test Summary:
+            \`\`\`
+            ${testOutput}
+            \`\`\`
+            
+            ### 🎯 Status:
+            - **Tests**: ${status} ${message}
+            - **Branch**: \`dev\` → \`test\`
+            - **Commit**: \`${{ github.sha }}\`
+            
+            ${status === '✅' ? '✅ **Ready for merge to test branch**' : '❌ **Please fix failing tests before merging**'}
+            
+            ---
+            *Tests run automatically on dev branch updates*`;
+            
+            // Find the PR number
+            const prs = await github.rest.pulls.list({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              base: 'test',
+              head: 'dev',
+              state: 'open'
+            });
+            
+            if (prs.data.length > 0) {
+              const prNumber = prs.data[0].number;
+              
+              await github.rest.issues.createComment({
+                issue_number: prNumber,
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                body: comment
+              });
+              
+              console.log(`✅ Commented on PR #${prNumber}`);
+            }
+            
+          } catch (error) {
+            console.error('Error running tests or commenting:', error);
+          }

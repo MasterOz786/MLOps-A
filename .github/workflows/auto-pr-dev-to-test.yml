@@ -1,0 +1,96 @@
+name: Auto PR from Dev to Test
+
+on:
+  push:
+    branches:
+      - dev
+    paths-ignore:
+      - 'README.md'
+      - '.gitignore'
+      - 'CODEOWNERS'
+
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/dev'
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+    
+    - name: Configure Git
+      run: |
+        git config --global user.name "GitHub Actions Bot"
+        git config --global user.email "actions@github.com"
+    
+    - name: Check if PR already exists
+      id: check-pr
+      run: |
+        # Check if there's already an open PR from dev to test
+        PR_EXISTS=$(gh pr list --base test --head dev --state open --json number --jq '.[0].number' || echo "")
+        if [ -n "$PR_EXISTS" ]; then
+          echo "pr_exists=true" >> $GITHUB_OUTPUT
+          echo "pr_number=$PR_EXISTS" >> $GITHUB_OUTPUT
+        else
+          echo "pr_exists=false" >> $GITHUB_OUTPUT
+        fi
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Create Pull Request
+      if: steps.check-pr.outputs.pr_exists == 'false'
+      run: |
+        # Create PR from dev to test
+        gh pr create \
+          --base test \
+          --head dev \
+          --title "🚀 Auto PR: Merge dev to test - $(date +'%Y-%m-%d %H:%M')" \
+          --body "## 🔄 Automated Pull Request
+        
+        This PR was automatically created when new features were pushed to the \`dev\` branch.
+        
+        ### 📋 Changes Included:
+        - Latest commits from \`dev\` branch
+        - New features and improvements
+        - Bug fixes and updates
+        
+        ### 🧪 Next Steps:
+        - This PR will trigger automated unit testing
+        - Review the changes before merging
+        - Ensure all tests pass before merging to \`test\` branch
+        
+        ### 🔍 Commit Details:
+        \`\`\`
+        $(git log --oneline -5)
+        \`\`\`
+        
+        ---
+        *This PR was created automatically by GitHub Actions*" \
+          --assignee @me \
+          --label "automated,dev-to-test,testing"
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Update existing PR
+      if: steps.check-pr.outputs.pr_exists == 'true'
+      run: |
+        # Update existing PR with new commits
+        gh pr comment ${{ steps.check-pr.outputs.pr_number }} \
+          --body "🔄 **PR Updated** - New commits have been pushed to \`dev\` branch
+        
+        ### 📝 Latest Commits:
+        \`\`\`
+        $(git log --oneline -3)
+        \`\`\`
+        
+        *Updated automatically by GitHub Actions*"
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+    
+    - name: Notify on success
+      run: |
+        echo "✅ Successfully handled PR creation/update from dev to test branch"
+        echo "🔗 Check the PR at: https://github.com/${{ github.repository }}/pulls"
