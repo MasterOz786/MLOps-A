@@ -1,4 +1,4 @@
-name: Simple PR Creator
+name: Dev to Test PR
 
 on:
   push:
@@ -22,34 +22,27 @@ jobs:
         
         # Get commit info
         COMMIT_MSG=$(git log -1 --pretty=format:"%s")
-        COMMIT_AUTHOR=$(git log -1 --pretty=format:"%an")
         COMMIT_SHORT=$(git rev-parse --short HEAD)
         
         # Create PR
         gh pr create \
           --base test \
           --head dev \
-          --title "🚀 Auto PR: $COMMIT_MSG" \
-          --body "## 🔄 Automated PR from Dev to Test
+          --title "🚀 Feature: $COMMIT_MSG" \
+          --body "## 🔄 Auto PR from Dev to Test
         
-        **Latest Changes:**
+        **Changes:**
         - Commit: \`$COMMIT_SHORT\`
-        - Author: $COMMIT_AUTHOR
         - Message: $COMMIT_MSG
         
-        **What happens next:**
-        1. ✅ This PR will trigger unit tests
-        2. 🔍 Review changes before merging
-        3. ✅ Merge to test branch after tests pass
-        
-        **Recent commits:**
-        \`\`\`
-        $(git log --oneline -3)
-        \`\`\`
+        **Next Steps:**
+        1. ✅ Tests will run automatically on test branch
+        2. 🔍 Review changes
+        3. ✅ Merge after tests pass
         
         ---
-        *Created automatically by GitHub Actions*" \
-          --label "automated,dev-to-test"
+        *Created automatically*" \
+          --label "auto-pr,dev-to-test"
         
         echo "✅ PR created successfully!"
       env:
