@@ -8,6 +8,10 @@ services:
     environment:
       - FLASK_ENV=production
       - FLASK_APP=app.py
+    volumes:
+      - ./model.pkl:/app/model.pkl:ro
+      - ./templates:/app/templates:ro
+      - ./static:/app/static:ro
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:5000/"]
