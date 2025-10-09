@@ -44,4 +44,6 @@ Thumbs.db
 *.tmp
 *.temp
 
+# Large model files
 model.pkl
+*.pkl
