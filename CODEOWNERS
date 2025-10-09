@@ -1,0 +1,35 @@
+# CODEOWNERS file for master branch
+# This file defines who is responsible for code in this repository
+
+# Global owners - these users will be requested for review when someone opens a pull request
+* @MasterOz786
+
+# Python files
+*.py @MasterOz786
+
+# Flask application files
+app.py @MasterOz786
+model.py @MasterOz786
+
+# Configuration files
+requirements.txt @MasterOz786
+Dockerfile @MasterOz786
+nginx.conf @MasterOz786
+
+# Documentation
+README.md @MasterOz786
+*.md @MasterOz786
+
+# Data files
+*.csv @MasterOz786
+*.pkl @MasterOz786
+
+# Jupyter notebooks
+*.ipynb @MasterOz786
+
+# Web assets
+static/ @MasterOz786
+templates/ @MasterOz786
+
+# Root directory files
+/ @MasterOz786
