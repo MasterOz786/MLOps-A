@@ -1,0 +1,25 @@
+{
+  "name": "Jenkins Webhook Configuration",
+  "description": "Configuration for Jenkins webhook to automatically trigger deployment pipeline",
+  "webhook_url": "https://your-jenkins-server.com/github-webhook/",
+  "jenkins_job": "zomato-deploy",
+  "triggers": [
+    {
+      "event": "push",
+      "branch": "master",
+      "action": "trigger_deployment"
+    }
+  ],
+  "parameters": {
+    "DOCKER_IMAGE": "zomato-restaurant-predictor",
+    "DOCKER_TAG": "latest",
+    "GITHUB_SHA": "${{ github.sha }}",
+    "GITHUB_REF": "${{ github.ref }}",
+    "BUILD_CAUSE": "GitHub Actions"
+  },
+  "authentication": {
+    "type": "basic_auth",
+    "username_secret": "JENKINS_USER",
+    "password_secret": "JENKINS_TOKEN"
+  }
+}
