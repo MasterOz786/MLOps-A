@@ -33,7 +33,7 @@ In Jenkins, go to **Manage Jenkins** → **Manage Plugins** and install:
 #### General Settings:
 - ✅ **GitHub project**: `https://github.com/MasterOz786/MLOps-A`
 - ✅ **This project is parameterized**:
-  - `DOCKER_IMAGE` (String): `zomato-restaurant-predictor`
+  - `DOCKER_IMAGE` (String): `masteroz/zomato-price-prediction`
   - `DOCKER_TAG` (String): `latest`
   - `GITHUB_SHA` (String): ``
   - `GITHUB_REF` (String): ``
