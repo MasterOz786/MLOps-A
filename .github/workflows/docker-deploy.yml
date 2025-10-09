@@ -7,7 +7,7 @@ on:
   workflow_dispatch:
 
 env:
-  DOCKER_IMAGE: zomato-restaurant-predictor
+  DOCKER_IMAGE: zomato-flask-app
   DOCKER_TAG: latest
 
 jobs:
@@ -55,6 +55,7 @@ jobs:
   notify-jenkins:
     needs: docker-build-and-push
     runs-on: ubuntu-latest
+    if: success()
     
     steps:
     - name: Notify Jenkins
@@ -77,55 +78,3 @@ jobs:
         
         echo "Jenkins notification sent successfully!"
 
-  send-email-notification:
-    needs: [docker-build-and-push, notify-jenkins]
-    runs-on: ubuntu-latest
-    if: always()
-    
-    steps:
-    - name: Send deployment email
-      uses: dawidd6/action-send-mail@v3
-      with:
-        server_address: ${{ secrets.SMTP_SERVER }}
-        server_port: ${{ secrets.SMTP_PORT }}
-        username: ${{ secrets.SMTP_USERNAME }}
-        password: ${{ secrets.SMTP_PASSWORD }}
-        subject: "🚀 Zomato Restaurant Predictor - Deployment Status"
-        to: ${{ secrets.NOTIFICATION_EMAILS }}
-        from: ${{ secrets.SMTP_FROM }}
-        body: |
-          <h2>🚀 Zomato Restaurant Predictor Deployment</h2>
-          
-          <h3>📊 Deployment Status</h3>
-          <p><strong>Status:</strong> 
-          ${{ needs.docker-build-and-push.result == 'success' && needs.notify-jenkins.result == 'success' && '✅ SUCCESS' || '❌ FAILED' }}
-          </p>
-          
-          <h3>📋 Details</h3>
-          <ul>
-            <li><strong>Repository:</strong> ${{ github.repository }}</li>
-            <li><strong>Branch:</strong> ${{ github.ref_name }}</li>
-            <li><strong>Commit:</strong> ${{ github.sha }}</li>
-            <li><strong>Docker Image:</strong> ${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_IMAGE }}:${{ env.DOCKER_TAG }}</li>
-            <li><strong>Triggered by:</strong> ${{ github.actor }}</li>
-            <li><strong>Timestamp:</strong> ${{ github.event.head_commit.timestamp }}</li>
-          </ul>
-          
-          <h3>🔗 Links</h3>
-          <ul>
-            <li><a href="${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}">GitHub Actions Run</a></li>
-            <li><a href="https://hub.docker.com/r/${{ secrets.DOCKERHUB_USERNAME }}/${{ env.DOCKER_IMAGE }}">Docker Hub Image</a></li>
-            <li><a href="${{ github.server_url }}/${{ github.repository }}/commit/${{ github.sha }}">Commit Details</a></li>
-          </ul>
-          
-          ${{ needs.docker-build-and-push.result == 'success' && needs.notify-jenkins.result == 'success' && '
-          <h3>✅ Next Steps</h3>
-          <p>The application has been successfully deployed and is ready for use!</p>
-          ' || '
-          <h3>❌ Action Required</h3>
-          <p>Please check the deployment logs and fix any issues before retrying.</p>
-          ' }}
-          
-          <hr>
-          <p><em>This is an automated message from GitHub Actions.</em></p>
-        html: true
