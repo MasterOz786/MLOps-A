@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: zomato-flask-app
+  labels:
+    app: zomato-flask-app
+    version: v1
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: zomato-flask-app
+  template:
+    metadata:
+      labels:
+        app: zomato-flask-app
+        version: v1
+    spec:
+      containers:
+      - name: zomato-flask-app
+        image: masteroz/zomato-flask-app:latest
+        ports:
+        - containerPort: 5000
+          name: http
+        env:
+        - name: FLASK_APP
+          value: "app.py"
+        - name: FLASK_ENV
+          value: "production"
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "250m"
+          limits:
+            memory: "512Mi"
+            cpu: "500m"
+        livenessProbe:
+          httpGet:
+            path: /
+            port: 5000
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 3
+        readinessProbe:
+          httpGet:
+            path: /
+            port: 5000
+          initialDelaySeconds: 5
+          periodSeconds: 5
+          timeoutSeconds: 3
+          failureThreshold: 3
+        volumeMounts:
+        - name: app-config
+          mountPath: /app/config
+          readOnly: true
+      volumes:
+      - name: app-config
+        configMap:
+          name: zomato-app-config
+      restartPolicy: Always
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zomato-app-config
+  labels:
+    app: zomato-flask-app
+data:
+  app.properties: |
+    # Zomato Flask App Configuration
+    debug=false
+    host=0.0.0.0
+    port=5000
+    model_path=/app/model.pkl
+  nginx.conf: |
+    events {
+        worker_connections 1024;
+    }
+    
+    http {
+        upstream flask_app {
+            server zomato-flask-app:5000;
+        }
+        
+        server {
+            listen 80;
+            
+            location / {
+                proxy_pass http://flask_app;
+                proxy_set_header Host $host;
+                proxy_set_header X-Real-IP $remote_addr;
+                proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+                proxy_set_header X-Forwarded-Proto $scheme;
+            }
+        }
+    }
