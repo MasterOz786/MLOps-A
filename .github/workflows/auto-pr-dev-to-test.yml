@@ -44,6 +44,7 @@ jobs:
       if: steps.check-pr.outputs.pr_exists == 'false'
       run: |
         # Create PR from dev to test
+        echo "Creating new PR from dev to test..."
         gh pr create \
           --base test \
           --head dev \
@@ -69,8 +70,10 @@ jobs:
         
         ---
         *This PR was created automatically by GitHub Actions*" \
-          --assignee @me \
-          --label "automated,dev-to-test,testing"
+          --label "automated,dev-to-test,testing" || {
+          echo "Failed to create PR, but continuing..."
+          exit 0
+        }
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
@@ -78,6 +81,7 @@ jobs:
       if: steps.check-pr.outputs.pr_exists == 'true'
       run: |
         # Update existing PR with new commits
+        echo "Updating existing PR #${{ steps.check-pr.outputs.pr_number }}..."
         gh pr comment ${{ steps.check-pr.outputs.pr_number }} \
           --body "🔄 **PR Updated** - New commits have been pushed to \`dev\` branch
         
@@ -86,7 +90,10 @@ jobs:
         $(git log --oneline -3)
         \`\`\`
         
-        *Updated automatically by GitHub Actions*"
+        *Updated automatically by GitHub Actions*" || {
+          echo "Failed to update PR, but continuing..."
+          exit 0
+        }
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     
