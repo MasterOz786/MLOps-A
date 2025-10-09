@@ -19,3 +19,14 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+
+  # Optional: Add a reverse proxy
+  nginx:
+    image: nginx:alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+      - zomato-app
+    restart: unless-stopped
