@@ -1,0 +1,56 @@
+name: Simple PR Creator
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+    
+    - name: Create PR from dev to test
+      run: |
+        echo "Creating PR from dev to test..."
+        
+        # Get commit info
+        COMMIT_MSG=$(git log -1 --pretty=format:"%s")
+        COMMIT_AUTHOR=$(git log -1 --pretty=format:"%an")
+        COMMIT_SHORT=$(git rev-parse --short HEAD)
+        
+        # Create PR
+        gh pr create \
+          --base test \
+          --head dev \
+          --title "🚀 Auto PR: $COMMIT_MSG" \
+          --body "## 🔄 Automated PR from Dev to Test
+        
+        **Latest Changes:**
+        - Commit: \`$COMMIT_SHORT\`
+        - Author: $COMMIT_AUTHOR
+        - Message: $COMMIT_MSG
+        
+        **What happens next:**
+        1. ✅ This PR will trigger unit tests
+        2. 🔍 Review changes before merging
+        3. ✅ Merge to test branch after tests pass
+        
+        **Recent commits:**
+        \`\`\`
+        $(git log --oneline -3)
+        \`\`\`
+        
+        ---
+        *Created automatically by GitHub Actions*" \
+          --label "automated,dev-to-test"
+        
+        echo "✅ PR created successfully!"
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
