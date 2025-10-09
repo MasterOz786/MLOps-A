@@ -46,8 +46,7 @@ jobs:
         - Message: $COMMIT_MSG
         
         ---
-        *Created automatically*" \
-            --label "auto-pr,dev-to-test" || {
+        *Created automatically*" || {
             echo "Failed to create PR, but continuing..."
             exit 0
           }
