@@ -29,45 +29,4 @@ jobs:
         echo "🧪 Running unit tests..."
         python -m pytest test_app.py -v
     
-    - name: Comment on PR
-      uses: actions/github-script@v7
-      with:
-        script: |
-          const { execSync } = require('child_process');
-          
-          try {
-            const testOutput = execSync('python -m pytest test_app.py --tb=no -q', { encoding: 'utf8' });
-            
-            const comment = `## 🧪 Test Results ✅
-            
-            All tests passed successfully!
-            
-            \`\`\`
-            ${testOutput}
-            \`\`\`
-            
-            ✅ **Ready to merge!**`;
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: comment
-            });
-            
-          } catch (error) {
-            const comment = `## 🧪 Test Results ❌
-            
-            Some tests failed. Please check the logs.
-            
-            \`\`\`
-            ${error.message}
-            \`\`\``;
-            
-            github.rest.issues.createComment({
-              issue_number: context.issue.number,
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              body: comment
-            });
-          }
+    

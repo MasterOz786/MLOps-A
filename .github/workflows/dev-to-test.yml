@@ -8,6 +8,10 @@ on:
 jobs:
   create-pr:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
     
     steps:
     - name: Checkout repository
@@ -20,30 +24,35 @@ jobs:
       run: |
         echo "Creating PR from dev to test..."
         
-        # Get commit info
         COMMIT_MSG=$(git log -1 --pretty=format:"%s")
         COMMIT_SHORT=$(git rev-parse --short HEAD)
         
-        # Create PR
-        gh pr create \
-          --base test \
-          --head dev \
-          --title "🚀 Feature: $COMMIT_MSG" \
-          --body "## 🔄 Auto PR from Dev to Test
+        # Check if PR already exists
+        EXISTING_PR=$(gh pr list --base test --head dev --state open --json number --jq '.[0].number' || echo "")
         
-        **Changes:**
+        if [ -n "$EXISTING_PR" ]; then
+          echo "PR already exists: #$EXISTING_PR"
+          echo "Updating existing PR..."
+          gh pr comment $EXISTING_PR --body "🔄 **Updated** - New commit: \`$COMMIT_SHORT\` - $COMMIT_MSG"
+        else
+          echo "Creating new PR..."
+          gh pr create \
+            --base test \
+            --head dev \
+            --title "🚀 Feature: $COMMIT_MSG" \
+            --body "## 🔄 Auto PR from Dev to Test
+        
         - Commit: \`$COMMIT_SHORT\`
         - Message: $COMMIT_MSG
         
-        **Next Steps:**
-        1. ✅ Tests will run automatically on test branch
-        2. 🔍 Review changes
-        3. ✅ Merge after tests pass
-        
         ---
         *Created automatically*" \
-          --label "auto-pr,dev-to-test"
+            --label "auto-pr,dev-to-test" || {
+            echo "Failed to create PR, but continuing..."
+            exit 0
+          }
+        fi
         
-        echo "✅ PR created successfully!"
+        echo "✅ PR handled successfully!"
       env:
         GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
