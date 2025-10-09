@@ -1,0 +1,57 @@
+name: Dev to Test PR
+
+on:
+  push:
+    branches:
+      - dev
+
+jobs:
+  create-pr:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        token: ${{ secrets.GITHUB_TOKEN }}
+        fetch-depth: 0
+    
+    - name: Create PR from dev to test
+      run: |
+        echo "Creating PR from dev to test..."
+        
+        COMMIT_MSG=$(git log -1 --pretty=format:"%s")
+        COMMIT_SHORT=$(git rev-parse --short HEAD)
+        
+        # Check if PR already exists
+        EXISTING_PR=$(gh pr list --base test --head dev --state open --json number --jq '.[0].number' || echo "")
+        
+        if [ -n "$EXISTING_PR" ]; then
+          echo "PR already exists: #$EXISTING_PR"
+          echo "Updating existing PR..."
+          gh pr comment $EXISTING_PR --body "🔄 **Updated** - New commit: \`$COMMIT_SHORT\` - $COMMIT_MSG"
+        else
+          echo "Creating new PR..."
+          gh pr create \
+            --base test \
+            --head dev \
+            --title "🚀 Feature: $COMMIT_MSG" \
+            --body "## 🔄 Auto PR from Dev to Test
+        
+        - Commit: \`$COMMIT_SHORT\`
+        - Message: $COMMIT_MSG
+        
+        ---
+        *Created automatically*" || {
+            echo "Failed to create PR, but continuing..."
+            exit 0
+          }
+        fi
+        
+        echo "✅ PR handled successfully!"
+      env:
+        GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
